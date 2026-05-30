@@ -7,6 +7,7 @@ public record UpdateTaskDto(
 
     [Required][StringLength(100)]string Title,
     bool IsComplete,
-    int CategoryId
+    int CategoryId,
+    DateTime? Deadline
 
 );

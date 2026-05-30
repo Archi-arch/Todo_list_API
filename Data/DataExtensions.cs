@@ -7,19 +7,19 @@ namespace My_todo_API.Data;
 
 public static class DataExtensions
 {
-    public static void MigrateDb(this WebApplication app) // сстворюємо клас для міграцій
+    public static void MigrateDb(this WebApplication app) 
     {
-        using var scope = app.Services.CreateScope(); // створюємо скоп але для чого ?
-        var DbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>(); // нічог оне зрозуміло
+        using var scope = app.Services.CreateScope(); 
+        var DbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>(); 
 
-        DbContext.Database.Migrate(); // запустити міграцію ?
+        DbContext.Database.Migrate(); 
     }
 
 
-    public static void AddTodoDb(this WebApplicationBuilder builder) // весь код нижче зовісм незрозумілий мені 
+    public static void AddTodoDb(this WebApplicationBuilder builder)  
     {
 
-        const string connString = "Data Source=todo.db"; // а де якийсь пароль логін чи цьог онетреба ?
+        const string connString = "Data Source=todo.db"; 
 
         builder.Services.AddSqlite<AppDbContext>(
             connString,
@@ -27,15 +27,15 @@ public static class DataExtensions
             {
 
 
-                // 1. Спочатку перевіряємо і заселяємо КАТЕГОРІЇ, якщо їх немає
+                
                 if (!context.Set<Category>().Any())
                 {
                     context.Set<Category>().AddRange(
-                        new Category { CategoryName = "Робота" },     // Отримає Id = 1
-                        new Category { CategoryName = "Особисте" }    // Отримає Id = 2
+                        new Category { CategoryName = "Робота" },     
+                        new Category { CategoryName = "Особисте" }    
                     );
 
-                    // Зберігаємо категорії в базу, щоб вони фізично там з'явилися й отримали свої Id
+                    
                     context.SaveChanges();
                 }
 

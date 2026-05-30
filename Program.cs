@@ -28,6 +28,7 @@ var myTasksList = new List<TodoTask>();
 
 
 app.MapTaskEndpoints();
+app.MapCategoryEndpoints();
 
 app.MigrateDb();
 

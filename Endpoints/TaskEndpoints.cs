@@ -10,14 +10,14 @@ namespace My_todo_API.Endpoints;
 public static class Endpoints
 {
 
-    // тут я пишу що це шось тільки для читання мій List але з _ бо він створений взагалі в іншому фалі а потім новйи такий самий List ?
-    public static void MapTaskEndpoints(this WebApplication app) // щось типу в стандартні методи Мап я добавляю свій ?
+
+    public static void MapTaskEndpoints(this WebApplication app)
     {
 
 
 
 
-        app.MapPost("/task", (CreateTaskDto dto, AppDbContext db) => // тут створюю новий таск і передаю тільки дто щоб було зрозуміло які поля  я маю заповнити
+        app.MapPost("/task", (CreateTaskDto dto, AppDbContext db) =>
         {
             var categoryExists = db.Categories.Any(c => c.CategoryId == dto.CategoryId);
 
@@ -26,31 +26,43 @@ public static class Endpoints
                 return Results.BadRequest($"category wint {dto.CategoryId} not fount");
             }
 
-            var newTask = new TodoTask // тут створюю змінну в яку запишуться всі данні які треба додати до списку 
+
+            if (dto.Deadline != null | dto.Deadline < DateTime.UtcNow)
+            {
+
+                if (dto.Deadline > DateTime.UtcNow.AddDays(365))
+                {
+                    return Results.BadRequest($"Deadline cant be future more than 365 days");
+                }
+                return Results.BadRequest($"Dedline cant be past");
+            }
+
+            var newTask = new TodoTask
             {
 
                 Title = dto.Title,
                 IsComplete = false,
-                CategoryId = dto.CategoryId
+                CategoryId = dto.CategoryId,
+                Deadline = dto.Deadline
             };
 
-            db.Tasks.Add(newTask); // тут добавляю цмінну з данними в список
+            db.Tasks.Add(newTask);
             db.SaveChanges();
-            return Results.Created($"/task/{newTask.Id}", newTask); // повертаю команду щоб було зрозуміло що в се додано
+            return Results.Created($"/task/{newTask.Id}", newTask);
 
 
         });
 
 
 
-        app.MapPut("/task/{id}", (int id, UpdateTaskDto dto, AppDbContext db) => // тут я вже в шлях передаю змінну ід і тому добавляю її в джуки а чому треба ще дто добавляти ?
+        app.MapPut("/task/{id}", (int id, UpdateTaskDto dto, AppDbContext db) =>
         {
-            var existingTask = db.Tasks.FirstOrDefault(t => t.Id == id); // тут перевіряється чи взагалі існує такий таск але недуже зрозуміло звідки взялось t ?
+            var existingTask = db.Tasks.FirstOrDefault(t => t.Id == id);
 
 
             if (existingTask == null)
             {
-                return Results.NotFound($"Task with id {id} not found"); // тут все зрозуміло замість стандартної помилки користувач побачить що нема такого завдання
+                return Results.NotFound($"Task with id {id} not found");
             }
             var categoryExists = db.Categories.Any(c => c.CategoryId == dto.CategoryId);
             if (!categoryExists)
@@ -58,46 +70,60 @@ public static class Endpoints
                 return Results.BadRequest($"Категорії з ID {dto.CategoryId} не існує!");
             }
 
-            existingTask.Title = dto.Title; // тут типу ми створили новий екземпляр туда записали данні і кажемо що ці данні це поля з дто чи як ?
+            if (dto.Deadline != null | dto.Deadline < DateTime.UtcNow)
+            {
+
+                if (dto.Deadline > DateTime.UtcNow.AddDays(365))
+                {
+                    return Results.BadRequest($"Deadline cant be future more than 365 days");
+                }
+                return Results.BadRequest($"Dedline cant be past");
+            }
+
+            existingTask.Title = dto.Title;
             existingTask.IsComplete = dto.IsComplete;
             existingTask.CategoryId = dto.CategoryId;
+            existingTask.Deadline = dto.Deadline;
 
             db.SaveChanges();
 
-            return Results.NoContent(); // відповідь замість стандартного 200
+            return Results.NoContent();
 
         });
 
 
-        app.MapGet("/task", (AppDbContext db) => // тут я так розумію шлях ? але що можна в дужки вставити ?
+        app.MapGet("/task", (AppDbContext db) =>
         {
             var response = db.Tasks.Include(t => t.Category)
-            .Select(task => new GetTaskDto( // тут що створюється новйи екземпляр класу getTaskdto ?
+            .Select(task => new GetTaskDto(
                 task.Id,
                 task.Title,
                 task.IsComplete,
-                task.Category != null ? task.Category.CategoryName : "Bez kategorii"
+                (!task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
+                ? "Протерміновано"
+                : (task.Category != null ? task.Category.CategoryName : "Без категорії"),
+                task.Deadline
 
-            )).ToList();//недуже зрозумів навіщо тут tolist ?
+            )).ToList();
 
 
-            return Results.Ok(response); // я так зрозумів що в змінну responese я вкладаю данні в вигляді словника? і потім повертаю їх але куда ?
+            return Results.Ok(response);
         });
 
 
 
 
-        app.MapDelete("/task/{id}", (int id, AppDbContext db) => // передав шлях і id
+        app.MapDelete("/task/{id}", (int id, AppDbContext db) =>
         {
-            var existingTask = db.Tasks.FirstOrDefault(e => e.Id == id); // перевіряю чи є таск ще первірив чи справді можна замість t написати що завгодно
+            var existingTask = db.Tasks.FirstOrDefault(e => e.Id == id);
 
             if (existingTask == null)
             {
-                return Results.NotFound($"Task with id {id} not found"); // якщо таски немає то повертаю помилку
+                return Results.NotFound($"Task with id {id} not found");
             }
 
 
-            db.Tasks.Remove(existingTask); // якщо таск є то видаляю 
+            db.Tasks.Remove(existingTask);
             db.SaveChanges();
             return Results.Ok($"Task with id - {id} deleted successfully");
 
@@ -107,25 +133,44 @@ public static class Endpoints
 
         app.MapGet("/task/category/{categoryId}", (int categoryId, AppDbContext db) =>
         {
-            // 1. Спочатку перевіряємо, чи взагалі існує така категорія в базі
+
             var categoryExists = db.Categories.Any(c => c.CategoryId == categoryId);
             if (!categoryExists)
             {
                 return Results.NotFound($"Категорії з ID {categoryId} не існує");
             }
 
-            // 2. Шукаємо таски, фільтруючи їх через .Where()
+
             var response = db.Tasks
-                .Include(t => t.Category) // Знову підтягуємо дані про категорію, щоб вивести її назву
-                .Where(task => task.CategoryId == categoryId) // <-- ОЦЕ НАЙГОЛОВНІШЕ! Беремо тільки збіги по ID
+                .Include(t => t.Category)
+                .Where(task => task.CategoryId == categoryId)
                 .Select(task => new GetTaskDto(
                     task.Id,
                     task.Title,
                     task.IsComplete,
-                    task.Category != null ? task.Category.CategoryName : "Без категорії"
+                    task.Category != null ? task.Category.CategoryName : "Без категорії",
+                    task.Deadline
+
                 )).ToList();
 
-            return Results.Ok(response); // Повертаємо 200 OK і наш відфільтрований список
+            return Results.Ok(response);
+        });
+
+
+        app.MapGet("/tasks/overdue", (AppDbContext db) =>
+        {
+            var response = db.Tasks
+            .Include(t => t.Category)
+            .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
+             .Select(task => new GetTaskDto(
+                task.Id,
+                task.Title,
+                task.IsComplete,
+                "Протерміновано",
+                task.Deadline
+             )).ToList();
+
+            return Results.Ok(response);
         });
     }
 }
