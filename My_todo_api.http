@@ -1,6 +1,33 @@
 @My_todo_api_HostAddress = http://localhost:5114
 
-GET {{My_todo_api_HostAddress}}/weatherforecast/
+GET {{My_todo_api_HostAddress}}/task
 Accept: application/json
+####
+###
+POST {{My_todo_api_HostAddress}}/task
+Content-Type: application/json
+
+{
+    "title": "Test post2",
+    "CategoryId" : "1"
+}
+
 
 ###
+DELETE {{My_todo_api_HostAddress}}/task/5
+
+
+
+###
+PUT {{My_todo_api_HostAddress}}/task/2
+Content-Type: application/json
+
+{
+    "title" : "TestPut",
+    "CategoryId" : "1"
+}
+
+
+###
+GET {{My_todo_api_HostAddress}}/task/category/1
+Content-Type: application/json
