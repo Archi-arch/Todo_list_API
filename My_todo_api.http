@@ -1,6 +1,6 @@
 @My_todo_api_HostAddress = http://localhost:5114
 
-GET {{My_todo_api_HostAddress}}/task
+GET {{My_todo_api_HostAddress}}/task?page=3&pageSize=5
 Accept: application/json
 ####
 ###
@@ -8,13 +8,14 @@ POST {{My_todo_api_HostAddress}}/task
 Content-Type: application/json
 
 {
-    "title": "Test post2",
-    "CategoryId" : "1"
+  "title": "Нове завдання на майбутнє",
+  "categoryIds": [1, 2],
+  "deadline": "2026-06-25"
 }
 
 
 ###
-DELETE {{My_todo_api_HostAddress}}/task/5
+DELETE {{My_todo_api_HostAddress}}/task/9
 
 
 
@@ -31,3 +32,34 @@ Content-Type: application/json
 ###
 GET {{My_todo_api_HostAddress}}/task/category/1
 Content-Type: application/json
+
+
+###
+GET {{My_todo_api_HostAddress}}/categories
+Content-Type: application/json
+
+
+###
+POST {{My_todo_api_HostAddress}}/categories
+Content-Type: application/json
+
+{
+    "CategoryName": "TestCategorypost"
+}
+
+
+
+###
+PUT  {{My_todo_api_HostAddress}}/categories/3
+Content-Type: application/json
+
+{
+    "CategoryName": "TestCategoryPUT"
+}
+
+
+####
+DELETE {{My_todo_api_HostAddress}}/categories/1
+
+###
+GET http://localhost:8080/task

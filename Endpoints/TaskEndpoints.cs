@@ -29,17 +29,8 @@ public static class Endpoints
                 return Results.BadRequest("Деякі з вказаних категорій не існують!");
             }
 
-            if (dto.Deadline != null)
-            {
-                if (dto.Deadline < DateTime.UtcNow)
-                {
-                    return Results.BadRequest("Dedline cant be past");
-                }
-                if (dto.Deadline > DateTime.UtcNow.AddDays(365))
-                {
-                    return Results.BadRequest("Deadline cant be future more than 365 days");
-                }
-            }
+            var deadlineError = ValidateDeadline(dto.Deadline);
+            if (deadlineError != null) return Results.BadRequest(deadlineError);
 
             var newTask = new TodoTask
             {
@@ -70,7 +61,9 @@ public static class Endpoints
 
         app.MapPut("/task/{id}", (int id, UpdateTaskDto dto, AppDbContext db) =>
         {
-            var existingTask = db.Tasks.FirstOrDefault(t => t.Id == id);
+            var existingTask = db.Tasks
+                .Include(t => t.Categories)
+                .FirstOrDefault(t => t.Id == id && !t.IsDeleted);
 
 
             if (existingTask == null)
@@ -86,17 +79,8 @@ public static class Endpoints
                 return Results.BadRequest("Деякі з вказаних категорій не існують!");
             }
 
-            if (dto.Deadline != null)
-            {
-                if (dto.Deadline < DateTime.UtcNow)
-                {
-                    return Results.BadRequest("Dedline cant be past");
-                }
-                if (dto.Deadline > DateTime.UtcNow.AddDays(365))
-                {
-                    return Results.BadRequest("Deadline cant be future more than 365 days");
-                }
-            }
+            var deadlineError = ValidateDeadline(dto.Deadline);
+            if (deadlineError != null) return Results.BadRequest(deadlineError);
 
             existingTask.Title = dto.Title;
             existingTask.IsComplete = dto.IsComplete;
@@ -111,7 +95,7 @@ public static class Endpoints
         });
 
 
-        app.MapGet("/task", (AppDbContext db, int page = 1, int pageSize = 15) =>
+        app.MapGet("/task", (AppDbContext db, string? search = null, int page = 1, int pageSize = 15) =>
         {
 
 
@@ -121,10 +105,18 @@ public static class Endpoints
 
             int skipCount = (page - 1) * pageSize;
 
-            var response = db.Tasks
+            var query = db.Tasks.Include(t => t.Categories).Where(t => !t.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var cleanSearch = search.ToLower().Trim();
+                query = query.Where(t => t.Title.ToLower().Contains(cleanSearch));
+            }
+
+            var response = query
             .Include(t => t.Categories)
-            .OrderByDescending(t => t.Id) 
-            .Skip(skipCount)              
+            .OrderByDescending(t => t.Id)
+            .Skip(skipCount)
             .Take(pageSize)
             .Select(task => new GetTaskDto(
                 task.Id,
@@ -164,7 +156,7 @@ public static class Endpoints
 
 
 
-        app.MapGet("/task/category/{categoryId}", (int categoryId, AppDbContext db,  int page = 1, int pageSize = 15) =>
+        app.MapGet("/task/category/{categoryId}", (int categoryId, AppDbContext db, int page = 1, int pageSize = 15) =>
         {
 
             var categoryExists = db.Categories.Any(c => c.CategoryId == categoryId);
@@ -181,7 +173,7 @@ public static class Endpoints
 
             var response = db.Tasks
                 .Include(t => t.Categories)
-                .Where(task => task.Categories.Any(c => c.CategoryId == categoryId))
+                .Where(task => task.Categories.Any(c => c.CategoryId == categoryId) && !task.IsDeleted)
                 .OrderByDescending(t => t.Id)
                 .Skip(skipCount)
                 .Take(pageSize)
@@ -209,7 +201,7 @@ public static class Endpoints
 
             var response = db.Tasks
                 .Include(t => t.Categories)
-                .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
+                .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline && !task.IsDeleted)
                 .OrderByDescending(t => t.Id)
                 .Skip(skipCount)
                 .Take(pageSize)
@@ -223,5 +215,25 @@ public static class Endpoints
 
             return Results.Ok(response);
         });
+
+    }
+
+
+
+    private static string? ValidateDeadline(DateTime? deadline)
+    {
+        if (deadline == null) return null;
+
+        if (deadline < DateTime.UtcNow)
+        {
+            return "Dedline cant be past";
+        }
+        if (deadline > DateTime.UtcNow.AddDays(365))
+        {
+            return "Deadline cant be future more than 365 days";
+        }
+
+        return null;
     }
 }
+

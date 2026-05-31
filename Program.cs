@@ -12,8 +12,22 @@ builder.Services.AddOpenApi();
 
 builder.AddTodoDb();
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()   // Дозволяємо запити з будь-якого сайту
+              .AllowAnyMethod()   // Дозволяємо будь-які методи (GET, POST, PUT, DELETE)
+              .AllowAnyHeader();  // Дозволяємо будь-які заголовки
+    });
+});
+
 var app = builder.Build();
 
+
+
+app.UseCors();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
