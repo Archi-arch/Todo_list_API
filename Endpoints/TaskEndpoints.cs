@@ -111,9 +111,21 @@ public static class Endpoints
         });
 
 
-        app.MapGet("/task", (AppDbContext db) =>
+        app.MapGet("/task", (AppDbContext db, int page = 1, int pageSize = 15) =>
         {
-            var response = db.Tasks.Include(t => t.Categories)
+
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 15;
+            if (pageSize > 100) pageSize = 100;
+
+            int skipCount = (page - 1) * pageSize;
+
+            var response = db.Tasks
+            .Include(t => t.Categories)
+            .OrderByDescending(t => t.Id) 
+            .Skip(skipCount)              
+            .Take(pageSize)
             .Select(task => new GetTaskDto(
                 task.Id,
                 task.Title,
@@ -152,7 +164,7 @@ public static class Endpoints
 
 
 
-        app.MapGet("/task/category/{categoryId}", (int categoryId, AppDbContext db) =>
+        app.MapGet("/task/category/{categoryId}", (int categoryId, AppDbContext db,  int page = 1, int pageSize = 15) =>
         {
 
             var categoryExists = db.Categories.Any(c => c.CategoryId == categoryId);
@@ -161,10 +173,18 @@ public static class Endpoints
                 return Results.NotFound($"Категорії з ID {categoryId} не існує");
             }
 
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 15;
+
+            int skipCount = (page - 1) * pageSize;
+
 
             var response = db.Tasks
                 .Include(t => t.Categories)
                 .Where(task => task.Categories.Any(c => c.CategoryId == categoryId))
+                .OrderByDescending(t => t.Id)
+                .Skip(skipCount)
+                .Take(pageSize)
                 .Select(task => new GetTaskDto(
                     task.Id,
                     task.Title,
@@ -178,11 +198,21 @@ public static class Endpoints
         });
 
 
-        app.MapGet("/tasks/overdue", (AppDbContext db) =>
+        app.MapGet("/tasks/overdue", (AppDbContext db, int page = 1, int pageSize = 15) =>
         {
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 15;
+
+            int skipCount = (page - 1) * pageSize;
+
+
             var response = db.Tasks
                 .Include(t => t.Categories)
                 .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
+                .OrderByDescending(t => t.Id)
+                .Skip(skipCount)
+                .Take(pageSize)
                 .Select(task => new GetTaskDto(
                     task.Id,
                     task.Title,
