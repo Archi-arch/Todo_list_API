@@ -148,7 +148,7 @@ public static class Endpoints
 
         app.MapDelete("/task/{id}", (int id, AppDbContext db) =>
         {
-            var existingTask = db.Tasks.FirstOrDefault(e => e.Id == id);
+            var existingTask = db.Tasks.FirstOrDefault(e => e.Id == id && !e.IsDeleted);
 
             if (existingTask == null)
             {
@@ -156,7 +156,7 @@ public static class Endpoints
             }
 
 
-            db.Tasks.Remove(existingTask);
+            existingTask.IsDeleted = true;
             db.SaveChanges();
             return Results.Ok($"Task with id - {id} deleted successfully");
 

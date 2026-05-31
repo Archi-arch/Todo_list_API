@@ -10,5 +10,6 @@ public class TodoTask
     public List<Category> Categories { get; set; } = new();
 
     public DateTime? Deadline{get;set;}
+    public bool IsDeleted { get; set; } = false;
  
 }
