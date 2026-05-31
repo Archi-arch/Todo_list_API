@@ -4,7 +4,7 @@ public record GetTaskDto(
     int Id,
     string Title,
     bool IsComplete,
-    string CategoryName,
+    List<string> CategoryNames,
     DateTime? Deadline
     
     

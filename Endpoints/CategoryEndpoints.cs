@@ -79,7 +79,7 @@ public static class CategoryEndpoints
                 return Results.NotFound($"Category witnh{Id} not found");
             }
 
-            var hasTasks = db.Tasks.Any(t => t.CategoryId == Id);
+            var hasTasks = db.Tasks.Any(t => t.Categories.Any(c => c.CategoryId == Id));
 
             if (hasTasks)
             {

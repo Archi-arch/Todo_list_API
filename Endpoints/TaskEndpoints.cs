@@ -19,22 +19,26 @@ public static class Endpoints
 
         app.MapPost("/task", (CreateTaskDto dto, AppDbContext db) =>
         {
-            var categoryExists = db.Categories.Any(c => c.CategoryId == dto.CategoryId);
+            var selectedCategories = db.Categories
+                    .Where(c => dto.CategoryIds.Contains(c.CategoryId))
+                    .ToList();
 
-            if (!categoryExists)
+
+            if (selectedCategories.Count != dto.CategoryIds.Count)
             {
-                return Results.BadRequest($"category wint {dto.CategoryId} not fount");
+                return Results.BadRequest("Деякі з вказаних категорій не існують!");
             }
 
-
-            if (dto.Deadline != null | dto.Deadline < DateTime.UtcNow)
+            if (dto.Deadline != null)
             {
-
+                if (dto.Deadline < DateTime.UtcNow)
+                {
+                    return Results.BadRequest("Dedline cant be past");
+                }
                 if (dto.Deadline > DateTime.UtcNow.AddDays(365))
                 {
-                    return Results.BadRequest($"Deadline cant be future more than 365 days");
+                    return Results.BadRequest("Deadline cant be future more than 365 days");
                 }
-                return Results.BadRequest($"Dedline cant be past");
             }
 
             var newTask = new TodoTask
@@ -42,13 +46,22 @@ public static class Endpoints
 
                 Title = dto.Title,
                 IsComplete = false,
-                CategoryId = dto.CategoryId,
+                Categories = selectedCategories,
                 Deadline = dto.Deadline
             };
 
             db.Tasks.Add(newTask);
             db.SaveChanges();
-            return Results.Created($"/task/{newTask.Id}", newTask);
+
+            var taskDto = new GetTaskDto(
+                newTask.Id,
+                newTask.Title,
+                newTask.IsComplete,
+                newTask.Categories.Select(c => c.CategoryName).ToList(),
+                newTask.Deadline
+            );
+
+            return Results.Created($"/task/{newTask.Id}", taskDto);
 
 
         });
@@ -64,25 +77,31 @@ public static class Endpoints
             {
                 return Results.NotFound($"Task with id {id} not found");
             }
-            var categoryExists = db.Categories.Any(c => c.CategoryId == dto.CategoryId);
-            if (!categoryExists)
+            var selectedCategories = db.Categories
+                            .Where(c => dto.CategoryIds.Contains(c.CategoryId))
+                            .ToList();
+
+            if (selectedCategories.Count != dto.CategoryIds.Count)
             {
-                return Results.BadRequest($"Категорії з ID {dto.CategoryId} не існує!");
+                return Results.BadRequest("Деякі з вказаних категорій не існують!");
             }
 
-            if (dto.Deadline != null | dto.Deadline < DateTime.UtcNow)
+            if (dto.Deadline != null)
             {
-
+                if (dto.Deadline < DateTime.UtcNow)
+                {
+                    return Results.BadRequest("Dedline cant be past");
+                }
                 if (dto.Deadline > DateTime.UtcNow.AddDays(365))
                 {
-                    return Results.BadRequest($"Deadline cant be future more than 365 days");
+                    return Results.BadRequest("Deadline cant be future more than 365 days");
                 }
-                return Results.BadRequest($"Dedline cant be past");
             }
 
             existingTask.Title = dto.Title;
             existingTask.IsComplete = dto.IsComplete;
-            existingTask.CategoryId = dto.CategoryId;
+            existingTask.Categories.Clear();
+            existingTask.Categories.AddRange(selectedCategories);
             existingTask.Deadline = dto.Deadline;
 
             db.SaveChanges();
@@ -94,14 +113,16 @@ public static class Endpoints
 
         app.MapGet("/task", (AppDbContext db) =>
         {
-            var response = db.Tasks.Include(t => t.Category)
+            var response = db.Tasks.Include(t => t.Categories)
             .Select(task => new GetTaskDto(
                 task.Id,
                 task.Title,
                 task.IsComplete,
                 (!task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
-                ? "Протерміновано"
-                : (task.Category != null ? task.Category.CategoryName : "Без категорії"),
+                        ? new List<string> { "Протерміновано" }
+                        : (task.Categories.Any()
+                        ? task.Categories.Select(c => c.CategoryName).ToList()
+                        : new List<string> { "Без категорії" }),
                 task.Deadline
 
             )).ToList();
@@ -142,13 +163,13 @@ public static class Endpoints
 
 
             var response = db.Tasks
-                .Include(t => t.Category)
-                .Where(task => task.CategoryId == categoryId)
+                .Include(t => t.Categories)
+                .Where(task => task.Categories.Any(c => c.CategoryId == categoryId))
                 .Select(task => new GetTaskDto(
                     task.Id,
                     task.Title,
                     task.IsComplete,
-                    task.Category != null ? task.Category.CategoryName : "Без категорії",
+                    task.Categories.Select(c => c.CategoryName).ToList(),
                     task.Deadline
 
                 )).ToList();
@@ -160,15 +181,15 @@ public static class Endpoints
         app.MapGet("/tasks/overdue", (AppDbContext db) =>
         {
             var response = db.Tasks
-            .Include(t => t.Category)
-            .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
-             .Select(task => new GetTaskDto(
-                task.Id,
-                task.Title,
-                task.IsComplete,
-                "Протерміновано",
-                task.Deadline
-             )).ToList();
+                .Include(t => t.Categories)
+                .Where(task => !task.IsComplete && task.Deadline != null && DateTime.UtcNow > task.Deadline)
+                .Select(task => new GetTaskDto(
+                    task.Id,
+                    task.Title,
+                    task.IsComplete,
+                    new List<string> { "Протерміновано" },
+                    task.Deadline
+                )).ToList();
 
             return Results.Ok(response);
         });

@@ -7,19 +7,19 @@ namespace My_todo_API.Data;
 
 public static class DataExtensions
 {
-    public static void MigrateDb(this WebApplication app) 
+    public static void MigrateDb(this WebApplication app)
     {
-        using var scope = app.Services.CreateScope(); 
-        var DbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>(); 
+        using var scope = app.Services.CreateScope();
+        var DbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        DbContext.Database.Migrate(); 
+        DbContext.Database.Migrate();
     }
 
 
-    public static void AddTodoDb(this WebApplicationBuilder builder)  
+    public static void AddTodoDb(this WebApplicationBuilder builder)
     {
 
-        const string connString = "Data Source=todo.db"; 
+        const string connString = "Data Source=todo.db";
 
         builder.Services.AddSqlite<AppDbContext>(
             connString,
@@ -27,26 +27,30 @@ public static class DataExtensions
             {
 
 
-                
                 if (!context.Set<Category>().Any())
                 {
-                    context.Set<Category>().AddRange(
-                        new Category { CategoryName = "Робота" },     
-                        new Category { CategoryName = "Особисте" }    
-                    );
+                    
+                    var workCategory = new Category { CategoryName = "Робота" };
+                    var personalCategory = new Category { CategoryName = "Особисте" };
 
                     
-                    context.SaveChanges();
-                }
+                    context.Set<Category>().AddRange(workCategory, personalCategory);
+                    context.SaveChanges(); 
 
-                if (!context.Set<TodoTask>().Any())
-                {
+                    
+                    if (!context.Set<TodoTask>().Any())
+                    {
+                        context.Set<TodoTask>().AddRange(
+                            new TodoTask
+                            {
+                                Title = "Вітаємо! Це твоє перше завдання з бази даних",
+                                IsComplete = false,
+                                Categories = new List<Category> { workCategory, personalCategory }
+                            }
+                        );
 
-                    context.Set<TodoTask>().AddRange(
-                        new TodoTask { Title = "Вітаємо! Це твоє перше завдання з бази даних", IsComplete = false , CategoryId = 1 }
-                    );
-
-                    context.SaveChanges();
+                        context.SaveChanges();
+                    }
                 }
             })
         );
